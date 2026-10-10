@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080f24" />
+    <meta name="description" content="Discover your future in tech. A NawrasEdu career guessing game." />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%assets/branding/favicon.svg" />
+    <title>Guess the Tech Career · NawrasEdu</title>
+  </head>
+  <body>
+    <div id="particles" aria-hidden="true"></div>
+    <main id="app"></main>
+    <dialog id="clear-dialog" aria-labelledby="clear-title">
+      <h2 id="clear-title">Clear the leaderboard?</h2>
+      <p>All attempts saved on this browser will be removed.</p>
+      <form method="dialog" class="actions">
+        <button value="cancel" autofocus>Cancel</button>
+        <button value="clear" class="danger">Clear Leaderboard</button>
+      </form>
+    </dialog>
+    <div id="notice" role="status"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
