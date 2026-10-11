@@ -1,8 +1,4 @@
-import '@fontsource/inter/latin-400.css';
-import '@fontsource/inter/latin-600.css';
-import '@fontsource/inter/latin-700.css';
-import '@fontsource/inter/latin-800.css';
-import '@fontsource/noto-sans-arabic/arabic-400.css';
+import './fonts.css';
 import './styles.css';
 import { Game, CARD_TIME_MS } from './game.js';
 import { Leaderboard } from './leaderboard.js';
@@ -11,6 +7,8 @@ import { Sounds } from './audio.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#clear-dialog');
+const noticeNode = document.querySelector('#notice');
+const events = new AbortController();
 const sounds = new Sounds();
 const soundControl = document.querySelector('#sound-control');
 function updateSoundControl() {
@@ -19,31 +17,32 @@ function updateSoundControl() {
   soundControl.setAttribute('aria-pressed', String(sounds.muted));
 }
 updateSoundControl();
-soundControl.addEventListener('click', () => { sounds.toggle(); updateSoundControl(); });
+soundControl.addEventListener('click', () => { sounds.toggle(); updateSoundControl(); }, { signal: events.signal });
 // Capture the first trusted interaction so the context is available before controls run.
-document.addEventListener('pointerdown', () => sounds.unlock(), { capture: true });
-document.addEventListener('keydown', () => sounds.unlock(), { capture: true });
+document.addEventListener('pointerdown', () => sounds.unlock(), { capture: true, signal: events.signal });
+document.addEventListener('keydown', () => sounds.unlock(), { capture: true, signal: events.signal });
 document.addEventListener('click', event => {
   const control = event.target.closest('button');
   if (control && !control.disabled && control !== soundControl && !control.classList.contains('answer')) sounds.play('click');
-}, { capture: true });
+}, { capture: true, signal: events.signal });
 let screen = 'landing';
 let previousScreen = 'landing';
 let currentResult = null;
 let playerName = '';
 let frame = null;
-let noticeTimer;
+let noticeTimer = null;
+let timerView = null;
 
 function notice(message) {
   clearTimeout(noticeTimer);
-  document.querySelector('#notice').textContent = message;
-  noticeTimer = setTimeout(() => { document.querySelector('#notice').textContent = ''; }, 10000);
+  noticeNode.textContent = message;
+  noticeTimer = setTimeout(() => { noticeNode.textContent = ''; noticeTimer = null; }, 10000);
 }
 let storage;
 try { storage = window.localStorage; } catch { storage = { getItem() { throw new Error(); }, setItem() { throw new Error(); }, removeItem() { throw new Error(); } }; }
 const leaderboard = new Leaderboard(storage, notice);
 const game = new Game({ onTick: updateTimer, onReveal: reveal });
-startParticles(document.querySelector('#particles'));
+let stopParticles = startParticles(document.querySelector('#particles'));
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -69,6 +68,7 @@ function logo() {
 function enterScreen(next) {
   if (frame !== null) cancelAnimationFrame(frame);
   frame = null;
+  timerView = null;
   screen = next;
   app.className = `screen ${next}`;
   app.replaceChildren();
@@ -82,6 +82,7 @@ function heading(text, className = '') {
 function time(ms) { return `${(ms / 1000).toFixed(3)} s`; }
 
 function landing() {
+  sounds.stop();
   game.dispose();
   enterScreen('landing');
   app.append(button('Leaderboard', 'corner-button', () => openLeaderboard('landing')));
@@ -126,6 +127,7 @@ function renderCard() {
   stats.append(progress, count, timer);
   const track = element('div', 'time-track');
   const fill = element('div', 'time-fill'); fill.id = 'time-fill'; track.append(fill);
+  timerView = { timer, label: timer.lastElementChild, fill, seconds: null, urgent: null };
   const card = element('article', 'career-card'); card.id = 'career-card';
   const inner = element('div', 'card-inner');
   const front = element('div', 'card-face card-front');
@@ -176,11 +178,18 @@ function renderCard() {
 }
 
 function updateTimer(remaining) {
-  const timer = document.querySelector('#timer');
-  if (!timer) return;
-  timer.lastElementChild.textContent = `${Math.ceil(remaining / 1000)} s`;
-  timer.classList.toggle('urgent', remaining <= 10000);
-  document.querySelector('#time-fill').style.width = `${100 * remaining / CARD_TIME_MS}%`;
+  if (!timerView) return;
+  const seconds = Math.ceil(remaining / 1000);
+  const urgent = remaining <= 10000;
+  if (seconds !== timerView.seconds) {
+    timerView.label.textContent = `${seconds} s`;
+    timerView.seconds = seconds;
+  }
+  if (urgent !== timerView.urgent) {
+    timerView.timer.classList.toggle('urgent', urgent);
+    timerView.urgent = urgent;
+  }
+  timerView.fill.style.transform = `scaleX(${remaining / CARD_TIME_MS})`;
 }
 
 function reveal(answer) {
@@ -291,7 +300,7 @@ dialog.addEventListener('close', () => {
   if (dialog.returnValue === 'clear' && leaderboard.clear()) {
     openLeaderboard(); notice('Leaderboard cleared.');
   }
-});
+}, { signal: events.signal });
 
 document.addEventListener('keydown', async event => {
   const typing = event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable);
@@ -306,10 +315,22 @@ document.addEventListener('keydown', async event => {
   if (!dialog.open && screen === 'game' && game.phase === 'answering' && /^[1-4]$/.test(event.key)) {
     event.preventDefault(); game.answer(game.options[Number(event.key) - 1].id);
   }
-});
+}, { signal: events.signal });
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && game.phase === 'answering') { game.clearTimer(); game.tick(); }
-});
-window.addEventListener('pagehide', () => { game.dispose(); sounds.dispose(); });
-window.addEventListener('pageshow', event => { if (event.persisted) landing(); });
+  if (!document.hidden && game.phase === 'answering') game.tick();
+}, { signal: events.signal });
+function cleanup() {
+  game.dispose(); sounds.dispose(); stopParticles();
+  if (frame !== null) cancelAnimationFrame(frame);
+  frame = null; timerView = null;
+  clearTimeout(noticeTimer); noticeTimer = null;
+}
+window.addEventListener('pagehide', cleanup, { signal: events.signal });
+window.addEventListener('pageshow', event => {
+  if (event.persisted) {
+    stopParticles = startParticles(document.querySelector('#particles'));
+    landing();
+  }
+}, { signal: events.signal });
+if (import.meta.hot) import.meta.hot.dispose(() => { cleanup(); events.abort(); });
 landing();

@@ -90,3 +90,15 @@ test('complete zero-score round, clean restart, dispose and stale callbacks', ()
   const fn = h.pending.values().next().value; game.dispose(); fn();
   assert.equal(h.pending.size, 0); assert.equal(game.phase, 'idle');
 });
+
+test('repeated tick calls and callbacks from a previous attempt cannot create duplicate timers', () => {
+  const h = harness(() => .5); const { game } = h;
+  game.start('P'); game.beginCard();
+  const stale = h.pending.values().next().value;
+  game.tick(); game.tick(); assert.equal(h.pending.size, 1);
+  game.start('P'); game.beginCard();
+  const before = h.pending.size; stale();
+  assert.equal(h.pending.size, before); assert.equal(game.answers.length, 0);
+  h.advance(30000); h.callback();
+  assert.equal(game.answers.length, 1); assert.equal(h.pending.size, 0);
+});

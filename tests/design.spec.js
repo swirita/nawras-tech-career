@@ -155,8 +155,13 @@ test('real Web Audio unlock, brief sequential cues, mute persistence and no dupl
   await page.clock.install(); await page.clock.runFor(40050);
   await expect(page.getByText('Time’s up. Meet the career below.')).toBeVisible();
   expect(await page.evaluate(() => audioAudit.tones.slice(-2).map(tone => tone.frequency))).toEqual([330, 220]);
-  await page.getByRole('button', { name: 'Next' }).click(); await page.clock.runFor(30050);
-  await page.getByRole('button', { name: 'Next' }).click(); await page.clock.runFor(30050);
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole('button', { name: 'Next' }).click();
+    // The new deadline starts on the next paint, not during the Next click.
+    await expect(page.locator('#time-fill')).toHaveAttribute('style', /scaleX/);
+    await page.clock.runFor(30050);
+    await expect(page.getByText('Time’s up. Meet the career below.')).toBeVisible();
+  }
   await page.getByRole('button', { name: 'See results' }).click();
   expect(await page.evaluate(() => audioAudit.tones.slice(-3).map(tone => tone.frequency))).toEqual([523, 659, 784]);
   expect(await page.evaluate(() => Math.max(...audioAudit.volumes))).toBeLessThanOrEqual(.025);

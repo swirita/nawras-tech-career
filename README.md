@@ -19,7 +19,7 @@ npm ci
 npm run dev
 ```
 
-Open the localhost URL printed by Vite. Production preview: `npm run build` then `npm run preview`.
+Open the URL printed by Vite, normally `http://127.0.0.1:5173/nawras-tech-career/`. Production preview: `npm run build` then `npm run preview`, and open `http://127.0.0.1:4173/nawras-tech-career/`.
 
 ## Play
 
@@ -42,24 +42,27 @@ npm run test:browser
 
 ## GitHub Pages
 
-This folder initially had **no Git repository or remote**, and `gh` was not installed, so no GitHub authentication could be checked. A local `main` repository is initialized without committing or publishing on your behalf.
+The existing `origin` is `https://github.com/swirita/nawras-tech-career.git`, on branch `main`. The expected Pages URL is `https://swirita.github.io/nawras-tech-career/`. Preparing or previewing the project locally does not publish it.
 
-1. Create an empty GitHub repository (for example `nawras-tech-career`), without adding a README or license there.
-2. Connect and push using your normal Git credential manager or SSH setup. Replace `YOUR-ACCOUNT` and, if different, the repository name:
+1. In that repository's **Settings → Pages → Build and deployment**, select **GitHub Actions**.
+2. When ready to publish, review and commit the changes, then push to the existing remote using your normal Git credential manager:
 
 ```sh
-git add .
-git commit -m "Build NawrasEdu tech career game"
-git remote add origin https://github.com/YOUR-ACCOUNT/nawras-tech-career.git
-git push -u origin main
+git add -A
+git commit -m "Optimize game and prepare GitHub Pages"
+git push origin main
 ```
 
-3. In repository **Settings → Pages → Build and deployment**, select **GitHub Actions**. If an initial deployment failed before this setting was enabled, rerun the workflow from the Actions tab.
-4. Pushes to `main` and manual runs of **Check and deploy to GitHub Pages** install from `package-lock.json`, run unit tests, install Chromium, build, run browser checks, and deploy `dist` to Pages.
+3. Watch **Actions → Check and deploy to GitHub Pages**. Pushes to `main` and manual **Run workflow** runs install from `package-lock.json`, run unit tests, install Chromium, build, run browser checks against the production repository path, and deploy `dist` to Pages. If Pages was enabled after a failed run, rerun the workflow.
+4. Open the URL reported by the deployment. The workflow uses the `github-pages` environment, Pages write and OIDC permissions only in the deployment job, and serialized deployments.
 
-Vite derives its base from `GITHUB_REPOSITORY` in Actions, so the actual connected repository is used automatically. Account sites named `ACCOUNT.github.io` use `/`; other repositories use `/REPOSITORY/`. Local builds use relative asset paths. Set `VITE_BASE_PATH=/` for a custom domain, or `VITE_BASE_PATH=/your-path/` for another hosting path. No server routes are used.
+`config/pages.js` supplies the same base path to Vite and the production browser tests. It defaults to `/nawras-tech-career/` locally and derives the repository name from `GITHUB_REPOSITORY` in Actions. Account sites named `ACCOUNT.github.io` use `/`; other repositories use `/REPOSITORY/`. Images, the square PNG favicon, bundled WOFF2 fonts and scripts load beneath that path. Set `VITE_BASE_PATH=/` for a custom domain, or `VITE_BASE_PATH=/your-path/` for another hosting path. No server routes are used.
+
+`node_modules`, `dist`, generated reports, debug logs and local environment files are ignored by Git. Original branding and the design reference are retained. Local preview and the hosted game have separate leaderboards because their origins differ.
 
 No passwords or tokens should be pasted into chat. If Git prompts for authentication, use your system credential manager or GitHub's SSH setup.
+
+The local GitHub CLI is unavailable, so GitHub authentication, repository Pages settings and a hosted deployment have not been verified here.
 
 ## Files
 
@@ -69,6 +72,8 @@ No passwords or tokens should be pasted into chat. If Git prompts for authentica
 - `src/main.js`: accessible screen rendering, focus, controls and clear confirmation.
 - `src/particles.js`, `src/styles.css`: lightweight motion, responsive reference theme and reduced-motion support.
 - `src/audio.js`: brief Web Audio effects, playback cleanup and persisted mute control.
+- `src/fonts.css`: local WOFF2 font faces without redundant fallback files in the build.
+- `config/pages.js`: shared repository base-path configuration.
 - `public/assets/branding/`: supplied Nawras branding and favicon.
 - `public/assets/sounds/`: reserved for optional local sounds; this version synthesizes lightweight effects.
 - `.github/workflows/deploy.yml`: checks, production build and Pages deployment.

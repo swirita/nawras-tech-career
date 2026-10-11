@@ -4,3 +4,12 @@ test-results/
 playwright-report/
 .checks/
 *.local
+*.log
+playwright/.cache/
+blob-report/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

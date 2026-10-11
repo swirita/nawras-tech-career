@@ -1,4 +1,7 @@
+const activeParticles = new WeakMap();
+
 export function startParticles(container) {
+  activeParticles.get(container)?.();
   const canvas = document.createElement('canvas');
   canvas.setAttribute('aria-hidden', 'true');
   container.replaceChildren(canvas);
@@ -6,7 +9,7 @@ export function startParticles(container) {
   if (!context) return () => canvas.remove();
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = ['#16a6c4', '#9380d3', '#dcb25a'];
-  let width = 0, height = 0, particles = [], frame = null, lastTime = 0, clearArea = null;
+  let width = 0, height = 0, particles = [], frame = null, lastTime = 0, clearArea = null, disposed = false;
 
   function updateClearArea() {
     const boxes = [...document.querySelectorAll('.landing .brand img, .landing .hero-title, .landing .name-form')]
@@ -36,6 +39,7 @@ export function startParticles(container) {
     context.globalAlpha = 1;
   }
   function animate(now) {
+    if (disposed) return;
     frame = null;
     // Cap large gaps and draw at ~30fps, independent of display refresh rate.
     if (!lastTime || now - lastTime >= 32) {
@@ -76,12 +80,17 @@ export function startParticles(container) {
   window.addEventListener('resize', resize);
   preference.addEventListener('change', updateMotion);
   document.addEventListener('visibilitychange', updateMotion);
-  return () => {
+  const cleanup = () => {
+    if (disposed) return;
+    disposed = true;
     if (frame !== null) cancelAnimationFrame(frame);
     window.removeEventListener('resize', resize);
     preference.removeEventListener('change', updateMotion);
     document.removeEventListener('visibilitychange', updateMotion);
     observer.disconnect();
     canvas.remove();
+    activeParticles.delete(container);
   };
+  activeParticles.set(container, cleanup);
+  return cleanup;
 }

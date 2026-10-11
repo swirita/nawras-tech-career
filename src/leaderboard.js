@@ -1,10 +1,12 @@
+import { CARD_TIME_MS, ROUND_SIZE } from './game.js';
+
 export const STORAGE_KEY = 'nawras-tech-career.leaderboard.v1';
 
 function valid(entry) {
   return entry && typeof entry.id === 'string' && typeof entry.name === 'string'
-    && entry.name.trim() && Number.isInteger(entry.correct) && entry.correct >= 0 && entry.correct <= 5
-    && Number.isInteger(entry.rankingTimeMs) && entry.rankingTimeMs >= (5 - entry.correct) * 30000
-    && entry.rankingTimeMs <= 150000;
+    && entry.name.trim() && Number.isInteger(entry.correct) && entry.correct >= 0 && entry.correct <= ROUND_SIZE
+    && Number.isInteger(entry.rankingTimeMs) && entry.rankingTimeMs >= (ROUND_SIZE - entry.correct) * CARD_TIME_MS
+    && entry.rankingTimeMs <= ROUND_SIZE * CARD_TIME_MS;
 }
 
 export function ranked(entries) {

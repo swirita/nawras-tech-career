@@ -24,6 +24,7 @@ export class Game {
     Object.assign(this, { now, schedule, cancel, random, onTick, onReveal });
     this.phase = 'idle';
     this.timer = null;
+    this.timerVersion = 0;
   }
 
   start(name) {
@@ -34,7 +35,6 @@ export class Game {
     this.cards = shuffle(careers, this.random).slice(0, ROUND_SIZE);
     this.index = 0;
     this.answers = [];
-    this.phase = 'ready';
     this.prepare();
   }
 
@@ -56,10 +56,15 @@ export class Game {
 
   tick() {
     if (this.phase !== 'answering') return;
+    this.clearTimer();
     const remaining = Math.max(0, this.deadline - this.now());
     if (!remaining) { this.settle(null); return; }
     this.onTick(remaining);
-    this.timer = this.schedule(() => { this.timer = null; this.tick(); }, Math.min(100, remaining));
+    const version = this.timerVersion;
+    this.timer = this.schedule(() => {
+      if (version !== this.timerVersion) return;
+      this.timer = null; this.tick();
+    }, Math.min(100, remaining));
   }
 
   answer(id) {
@@ -94,6 +99,6 @@ export class Game {
     return { id: this.id, name: this.name, correct: this.correctCount,
       rankingTimeMs: this.rankingTimeMs, completedAt: new Date().toISOString() };
   }
-  clearTimer() { if (this.timer !== null) this.cancel(this.timer); this.timer = null; }
+  clearTimer() { this.timerVersion++; if (this.timer !== null) this.cancel(this.timer); this.timer = null; }
   dispose() { this.clearTimer(); this.phase = 'idle'; }
 }

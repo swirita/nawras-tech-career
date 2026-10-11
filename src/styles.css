@@ -4,8 +4,6 @@
   background: #eaf5fb;
   font-synthesis: none;
   --cyan: #087f9e;
-  --lavender: #7462bc;
-  --gold: #e7b54e;
   --muted: #456c82;
   --border: #94b8ce85;
   --glass: #ffffff9c;
@@ -63,7 +61,7 @@ input::placeholder { color: #5f7f92; font-size: 14px; }
 .timer-icon { font-size: 25px; }
 .timer.urgent { color: #966322; }
 .time-track { height: 3px; background: #c4dce9; border-radius: 3px; margin-bottom: 18px; overflow: hidden; }
-.time-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #7462bc, #1296b4); transition: width .1s linear; }
+.time-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #7462bc, #1296b4); transform-origin: left; transition: transform .1s linear; }
 /* Both faces occupy one grid cell and determine its size before play starts.
    Only the inner layer rotates; the perspective wrapper and all controls stay put. */
 .career-card { position: relative; perspective: 1400px; isolation: isolate; }
