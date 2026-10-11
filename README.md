@@ -1,6 +1,14 @@
-# Guess the Tech Career · NawrasEdu
+# Guess the Tech Career
 
 A presenter-laptop game built with Vite, vanilla JavaScript, HTML and CSS. Each player gets five different careers from the supplied 15-card Arabic collection, 30 seconds per card, and four shuffled English options. The provided Nawras logo is included; Arabic uses locally bundled Noto Sans Arabic. No paid APIs, backend or remote fonts are required.
+
+The visual guide is `design-reference/Screenshot 2026-10-11 022436.png`: pale blue, a fine cyan grid, navy/teal headings, white glass panels and gold actions. All screens and dialogs follow this theme and reuse `public/assets/branding/nawras-name.png`. The page title is “Guess the Tech Career”; the favicon uses the existing square `nawras-small.png` branding asset. Buttons contain text only, with no arrows.
+
+The gameplay stack is centered in the area below the header. Both card faces and a reserved continuation area keep the card and answer positions stable when revealing. Compact layouts keep the options and Next control visible on smaller screens. One canvas draws restrained cyan/lavender particles, with occasional soft gold, varied depths and gentle movement. The area around the landing logo, title and name form remains clear. It uses fewer particles on mobile, draws at about 30fps, caps pixel density and pauses while hidden. Reduced motion leaves a static particle field; particles never intercept clicks.
+
+Cards flip top to bottom with a two-face `rotateX` transition, perspective and hidden back faces. Both faces determine the card's size before answering to keep its layout stable; the unrevealed back is hidden visually and from assistive technology. Reduced-motion users see an immediate reveal.
+
+Short, quiet Web Audio sounds cover clicks, flips, correct/wrong answers, timeouts and round completion. There are no local sound files, so no downloads or continuous audio are needed. Audio unlocks after the first interaction. The small Sound control appears on every screen, stops playback when muted and remembers its setting in localStorage. Cues play sequentially, with one sequence at a time.
 
 ## Run locally
 
@@ -30,7 +38,7 @@ npm run build
 npm run test:browser
 ```
 
-`npm run check` runs unit tests, builds, and then runs browser tests. The browser suite tests the actual production build. Tests cover unique-card randomization, independently shuffled choices, answer locking, exact and delayed deadlines, timer cleanup, reading-time exclusion, wrong-answer penalties, zero-score rounds, duplicate-save prevention, shared ranks, safe names, refresh persistence, clear confirmation, keyboard input, reduced motion and mobile layout.
+`npm run check` runs unit tests, builds, and then runs browser tests. The browser suite tests the actual production build. Tests cover unique-card randomization, independently shuffled choices, answer locking, exact and delayed deadlines, timer cleanup, reading-time exclusion, wrong-answer penalties, zero-score rounds, duplicate-save prevention, shared ranks, safe names, refresh persistence, clear confirmation and keyboard input. Additional browser checks capture all screens at laptop/mobile sizes and inspect the vertical flip's axis, back faces, upright text, stable layout and reduced-motion behavior. Real Web Audio is instrumented to verify interaction unlock, brief sequential cues, locked-answer silence, mute persistence and playback cleanup. Fullscreen is checked in an active round and an open confirmation dialog.
 
 ## GitHub Pages
 
@@ -59,7 +67,8 @@ No passwords or tokens should be pasted into chat. If Git prompts for authentica
 - `src/game.js`: shuffled round selection, final-answer locking, deadline-based timing and scoring.
 - `src/leaderboard.js`: validated browser storage, idempotent saves and shared ranks.
 - `src/main.js`: accessible screen rendering, focus, controls and clear confirmation.
-- `src/particles.js`, `src/styles.css`: lightweight motion, responsive navy theme and reduced-motion support.
+- `src/particles.js`, `src/styles.css`: lightweight motion, responsive reference theme and reduced-motion support.
+- `src/audio.js`: brief Web Audio effects, playback cleanup and persisted mute control.
 - `public/assets/branding/`: supplied Nawras branding and favicon.
-- `public/assets/sounds/`: reserved for optional local sounds; the first version plays silently.
+- `public/assets/sounds/`: reserved for optional local sounds; this version synthesizes lightweight effects.
 - `.github/workflows/deploy.yml`: checks, production build and Pages deployment.

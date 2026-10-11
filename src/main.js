@@ -7,9 +7,26 @@ import './styles.css';
 import { Game, CARD_TIME_MS } from './game.js';
 import { Leaderboard } from './leaderboard.js';
 import { startParticles } from './particles.js';
+import { Sounds } from './audio.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#clear-dialog');
+const sounds = new Sounds();
+const soundControl = document.querySelector('#sound-control');
+function updateSoundControl() {
+  soundControl.textContent = sounds.muted ? 'Sound off' : 'Sound on';
+  soundControl.setAttribute('aria-label', sounds.muted ? 'Unmute sounds' : 'Mute sounds');
+  soundControl.setAttribute('aria-pressed', String(sounds.muted));
+}
+updateSoundControl();
+soundControl.addEventListener('click', () => { sounds.toggle(); updateSoundControl(); });
+// Capture the first trusted interaction so the context is available before controls run.
+document.addEventListener('pointerdown', () => sounds.unlock(), { capture: true });
+document.addEventListener('keydown', () => sounds.unlock(), { capture: true });
+document.addEventListener('click', event => {
+  const control = event.target.closest('button');
+  if (control && !control.disabled && control !== soundControl && !control.classList.contains('answer')) sounds.play('click');
+}, { capture: true });
 let screen = 'landing';
 let previousScreen = 'landing';
 let currentResult = null;
@@ -43,7 +60,7 @@ function button(text, className, action) {
 function logo() {
   const wrapper = element('div', 'brand');
   const img = element('img');
-  img.src = `${import.meta.env.BASE_URL}assets/branding/light-nawras.png`;
+  img.src = `${import.meta.env.BASE_URL}assets/branding/nawras-name.png`;
   img.alt = 'NawrasEdu';
   img.width = 260; img.height = 87;
   img.addEventListener('error', () => wrapper.replaceChildren(element('span', 'brand-fallback', 'NAWRAS EDU')), { once: true });
@@ -67,7 +84,7 @@ function time(ms) { return `${(ms / 1000).toFixed(3)} s`; }
 function landing() {
   game.dispose();
   enterScreen('landing');
-  app.append(button('Leaderboard ↗', 'corner-button', () => openLeaderboard('landing')));
+  app.append(button('Leaderboard', 'corner-button', () => openLeaderboard('landing')));
   const content = element('div', 'landing-content');
   const title = heading('Guess the\nTech Career', 'hero-title');
   const form = element('form', 'name-form');
@@ -77,7 +94,7 @@ function landing() {
   input.id = 'player-name'; input.name = 'playerName'; input.autocomplete = 'off';
   input.maxLength = 80; input.required = true; input.dir = 'auto';
   input.placeholder = 'Enter your name'; input.value = playerName;
-  const start = element('button', 'primary start-button', 'Start →');
+  const start = element('button', 'primary start-button', 'Start');
   start.type = 'submit'; start.disabled = !input.value.trim();
   input.addEventListener('input', () => { playerName = input.value; start.disabled = !input.value.trim(); input.setCustomValidity(''); });
   form.addEventListener('submit', event => {
@@ -110,10 +127,25 @@ function renderCard() {
   const track = element('div', 'time-track');
   const fill = element('div', 'time-fill'); fill.id = 'time-fill'; track.append(fill);
   const card = element('article', 'career-card'); card.id = 'career-card';
-  card.append(element('span', 'card-label', 'THE CLUE'));
+  const inner = element('div', 'card-inner');
+  const front = element('div', 'card-face card-front');
+  const back = element('div', 'card-face card-back');
+  back.setAttribute('aria-hidden', 'true'); back.inert = true;
+  front.append(element('span', 'card-label', 'THE CLUE'));
   const clue = element('div', 'arabic clue'); clue.lang = 'ar'; clue.dir = 'rtl';
   game.card.clue.forEach(line => clue.append(element('p', '', line)));
-  card.append(clue, element('h1', 'who', 'Who am I?'));
+  front.append(clue, element('h1', 'who', 'Who am I?'));
+  // Both faces size the same grid cell before the timer starts. The back is hidden
+  // visually and from assistive technology until the answer, with no layout shift.
+  back.append(element('span', 'card-label', 'CAREER REVEALED'), element('h2', 'career-title', game.card.name));
+  const explanation = element('p', 'arabic explanation', game.card.explanation);
+  explanation.dir = 'rtl'; explanation.lang = 'ar';
+  const skills = element('div', 'skills'); skills.dir = 'ltr';
+  skills.append(element('span', 'eyebrow', 'SKILLS'));
+  const tags = element('div', 'skill-tags');
+  game.card.skills.forEach(skill => tags.append(element('span', 'skill-tag', skill)));
+  skills.append(tags); back.append(explanation, skills);
+  inner.append(front, back); card.append(inner);
   const options = element('div', 'answers'); options.setAttribute('aria-label', 'Choose a career');
   game.options.forEach((option, i) => {
     const answer = button('', 'answer', () => game.answer(option.id));
@@ -123,12 +155,17 @@ function renderCard() {
   });
   const feedback = element('div', 'feedback'); feedback.id = 'feedback';
   feedback.setAttribute('role', 'status'); feedback.setAttribute('aria-live', 'polite');
-  const next = button(game.index === 4 ? 'See results →' : 'Next →', 'primary next-button', () => {
+  const next = button(game.index === 4 ? 'See results' : 'Next', 'primary next-button', () => {
     if (!game.next()) return;
     if (game.phase === 'complete') finish(); else renderCard();
   });
   next.id = 'next'; next.hidden = true;
-  content.append(stats, track, card, options, feedback, next);
+  const stage = element('div', 'game-stage');
+  const stack = element('div', 'play-stack');
+  const continuation = element('div', 'continuation');
+  continuation.append(feedback, next);
+  stack.append(card, options, continuation); stage.append(stack);
+  content.append(stats, track, stage);
   app.append(content);
   options.firstElementChild.focus({ preventScroll: true });
   // Let the DOM paint before starting the deadline. Repeated calls cannot restart it.
@@ -147,6 +184,7 @@ function updateTimer(remaining) {
 }
 
 function reveal(answer) {
+  sounds.play(answer.correct ? 'correct' : answer.selectedId === null ? 'timeout' : 'wrong');
   document.querySelectorAll('.answer').forEach(node => {
     node.disabled = true;
     if (node.dataset.career === game.card.id) node.classList.add('correct-answer');
@@ -158,14 +196,12 @@ function reveal(answer) {
   document.querySelector('#score').textContent = `${game.correctCount} / 5 correct`;
   updateTimer(answer.selectedId === null ? 0 : CARD_TIME_MS - answer.elapsedMs);
   const card = document.querySelector('#career-card');
-  card.replaceChildren(element('span', 'card-label', 'CAREER REVEALED'), element('h1', 'career-name', game.card.name));
-  const explanation = element('p', 'arabic explanation', game.card.explanation);
-  explanation.dir = 'rtl'; explanation.lang = 'ar';
-  const skills = element('div', 'skills'); skills.dir = 'ltr';
-  skills.append(element('span', 'eyebrow', 'SKILLS'));
-  const tags = element('div', 'skill-tags');
-  game.card.skills.forEach(skill => tags.append(element('span', 'skill-tag', skill)));
-  skills.append(tags); card.append(explanation, skills); card.classList.add('flipped');
+  const front = card.querySelector('.card-front');
+  const back = card.querySelector('.card-back');
+  front.setAttribute('aria-hidden', 'true'); front.inert = true;
+  back.removeAttribute('aria-hidden'); back.inert = false;
+  back.querySelector('.career-title').classList.add('career-name');
+  card.classList.add('flipped');
   document.querySelector('#next').hidden = false;
   document.querySelector('#next').focus({ preventScroll: true });
 }
@@ -198,6 +234,7 @@ function leaderboardTable(entries, currentId) {
 }
 
 function finish() {
+  sounds.play('complete');
   currentResult = game.result();
   leaderboard.save(currentResult); // Attempt ID makes this operation idempotent.
   results();
@@ -215,7 +252,7 @@ function results() {
     const metric = element('div', 'metric'); metric.append(element('span', 'eyebrow', label), element('strong', '', value)); metrics.append(metric);
   });
   const actions = element('div', 'actions');
-  actions.append(button('Play Again →', 'primary', landing), button('Full Leaderboard ↗', '', () => openLeaderboard('results')));
+  actions.append(button('Play Again', 'primary', landing), button('Full Leaderboard', '', () => openLeaderboard('results')));
   content.append(metrics, actions, element('h2', 'board-title', 'Top 5'));
   const preview = all.filter(entry => entry.rank <= 5);
   if (current && current.rank > 5) preview.push(current);
@@ -238,7 +275,7 @@ function openLeaderboard(from) {
   const content = element('section', 'leaderboard-content');
   const top = element('div', 'board-heading');
   const title = heading('Leaderboard');
-  top.append(title, button('← Back', '', () => previousScreen === 'results' && currentResult ? results() : landing()));
+  top.append(title, button('Back', '', () => previousScreen === 'results' && currentResult ? results() : landing()));
   content.append(top, element('p', 'board-note', 'Five careers. Your best thinking. Every attempt counts.'));
   content.append(leaderboardTable(leaderboard.all(), currentResult?.id));
   const footer = element('div', 'board-footer');
@@ -258,7 +295,7 @@ dialog.addEventListener('close', () => {
 
 document.addEventListener('keydown', async event => {
   const typing = event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable);
-  if (typing || event.ctrlKey || event.metaKey || event.altKey || event.repeat || dialog.open) return;
+  if (typing || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
   if (event.key.toLowerCase() === 'f') {
     event.preventDefault();
     try {
@@ -266,13 +303,13 @@ document.addEventListener('keydown', async event => {
       else await document.documentElement.requestFullscreen();
     } catch { notice('Fullscreen is unavailable in this browser.'); }
   }
-  if (screen === 'game' && game.phase === 'answering' && /^[1-4]$/.test(event.key)) {
+  if (!dialog.open && screen === 'game' && game.phase === 'answering' && /^[1-4]$/.test(event.key)) {
     event.preventDefault(); game.answer(game.options[Number(event.key) - 1].id);
   }
 });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && game.phase === 'answering') { game.clearTimer(); game.tick(); }
 });
-window.addEventListener('pagehide', () => game.dispose());
+window.addEventListener('pagehide', () => { game.dispose(); sounds.dispose(); });
 window.addEventListener('pageshow', event => { if (event.persisted) landing(); });
 landing();
